@@ -1,0 +1,6 @@
+{"type":"user.started","timestamp":"2026-06-19T10:00:00Z","data":{"sessionId":"test-session-001"}}
+{"type":"copilot.modelChanged","timestamp":"2026-06-19T10:01:00Z","data":{"model":"gpt-5-mini"}}
+{"type":"copilot.metrics","timestamp":"2026-06-19T10:05:00Z","data":{"currentModel":"gpt-5-mini","totalUserRequests":2,"totalNanoAiu":150000000,"modelMetrics":{"gpt-5-mini":{"requests":{"count":2},"usage":{"inputTokens":1500,"outputTokens":600,"cacheReadTokens":200,"cacheWriteTokens":100,"reasoningTokens":0},"totalNanoAiu":150000000}}}}
+{"type":"copilot.modelChanged","timestamp":"2026-06-19T10:06:00Z","data":{"model":"claude-sonnet-4.6"}}
+{"type":"copilot.metrics","timestamp":"2026-06-19T10:10:00Z","data":{"currentModel":"claude-sonnet-4.6","totalUserRequests":5,"totalNanoAiu":425000000,"modelMetrics":{"gpt-5-mini":{"requests":{"count":3},"usage":{"inputTokens":2100,"outputTokens":950,"cacheReadTokens":450,"cacheWriteTokens":200,"reasoningTokens":0},"totalNanoAiu":250000000},"claude-sonnet-4.6":{"requests":{"count":2},"usage":{"inputTokens":1500,"outputTokens":680,"cacheReadTokens":100,"cacheWriteTokens":0,"reasoningTokens":0},"totalNanoAiu":175000000}}}}
+{"type":"user.ended","timestamp":"2026-06-19T10:15:00Z","data":{"sessionId":"test-session-001","durationSeconds":900}}

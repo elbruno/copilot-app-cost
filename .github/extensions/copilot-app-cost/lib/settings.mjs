@@ -2,6 +2,22 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+/**
+ * @typedef {Object} Settings
+ * @property {string} billingScope - "user" or "organization"
+ * @property {string} userAccount - GitHub username for personal billing
+ * @property {string} organizationAccount - Organization name for org billing
+ * @property {number} billingYear - Year for billing data (e.g. 2026)
+ * @property {number} billingMonth - Month 1-12
+ * @property {number} liveRefreshSeconds - Live session poll interval (2-10)
+ * @property {number} sessionHistoryRefreshSeconds - Session history poll interval (10-300)
+ * @property {number} billingRefreshMinutes - Billing refresh interval (1-60)
+ * @property {{ sessionAiCredits?: number|null; sessionUsd?: number|null; monthlyUsagePercent?: number|null; monthlyNetUsd?: number|null }} alerts - Alert thresholds
+ * @property {boolean} diagnosticsEnabled - Show diagnostic info
+ * @property {boolean} billReasoningTokens - Bill Claude reasoning tokens as output
+ * @property {string} updatedAt - ISO 8601 timestamp of last update
+ */
+
 const APP_NAME = "copilot-app-cost";
 const SETTINGS_FILE = "settings.json";
 

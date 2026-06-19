@@ -1,0 +1,68 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 22.x]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      
+      - name: Run tests
+        run: npm test
+      
+      - name: Check test results
+        if: failure()
+        run: exit 1
+
+  lint-and-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+      
+      - name: Check for syntax errors
+        run: node --check .github/extensions/copilot-app-cost/extension.mjs
+      
+      - name: Check lib modules
+        run: |
+          node --check .github/extensions/copilot-app-cost/lib/cost.mjs
+          node --check .github/extensions/copilot-app-cost/lib/billing.mjs
+          node --check .github/extensions/copilot-app-cost/lib/settings.mjs
+          node --check .github/extensions/copilot-app-cost/lib/history.mjs
+
+  validate-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check that all documentation files exist
+        run: |
+          [ -f docs/PRD.md ] && echo "✓ PRD.md"
+          [ -f docs/INSTALL.md ] && echo "✓ INSTALL.md"
+          [ -f docs/USER_GUIDE.md ] && echo "✓ USER_GUIDE.md"
+          [ -f docs/API.md ] && echo "✓ API.md"
+          [ -f docs/architecture.md ] && echo "✓ architecture.md"
+          [ -f docs/data-sources.md ] && echo "✓ data-sources.md"
+          [ -f docs/implementation-plan.md ] && echo "✓ implementation-plan.md"
+          [ -f docs/spikes/canvas-session-rpc.md ] && echo "✓ spikes/canvas-session-rpc.md"
+          [ -f docs/spikes/billing-auth.md ] && echo "✓ spikes/billing-auth.md"

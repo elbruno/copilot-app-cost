@@ -1,0 +1,50 @@
+{
+  "zero_usage": {
+    "currentModel": "gpt-5-mini",
+    "totalNanoAiu": 0,
+    "totalUserRequests": 0,
+    "modelMetrics": {}
+  },
+  "high_usage": {
+    "currentModel": "gpt-5.5",
+    "totalNanoAiu": 5000000000,
+    "totalUserRequests": 50,
+    "modelMetrics": {
+      "gpt-5.5": {
+        "requests": { "count": 50 },
+        "usage": {
+          "inputTokens": 500000,
+          "outputTokens": 200000,
+          "cacheReadTokens": 10000,
+          "cacheWriteTokens": 0,
+          "reasoningTokens": 0
+        },
+        "totalNanoAiu": 5000000000
+      }
+    }
+  },
+  "reasoning_tokens": {
+    "currentModel": "claude-opus-4.8",
+    "totalNanoAiu": 1500000000,
+    "totalUserRequests": 3,
+    "modelMetrics": {
+      "claude-opus-4.8": {
+        "requests": { "count": 3 },
+        "usage": {
+          "inputTokens": 50000,
+          "outputTokens": 20000,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0,
+          "reasoningTokens": 5000
+        },
+        "totalNanoAiu": 1500000000
+      }
+    }
+  },
+  "empty_metrics": {
+    "currentModel": "gpt-5-mini",
+    "totalNanoAiu": null,
+    "totalUserRequests": null,
+    "modelMetrics": null
+  }
+}

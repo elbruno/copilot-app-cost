@@ -1,3 +1,85 @@
+/**
+ * @typedef {Object} SessionMetrics
+ * @property {string} [currentModel] - Active model name
+ * @property {number} [totalNanoAiu] - Session total in nano AI units (1B = 1 credit)
+ * @property {number} [totalUserRequests] - Total requests in session
+ * @property {number} [totalPremiumRequestCost] - Premium request cost
+ * @property {number} [totalApiDurationMs] - Total API call duration
+ * @property {string} [sessionStartTime] - ISO 8601 timestamp
+ * @property {number} [lastCallInputTokens] - Input tokens in last call
+ * @property {number} [lastCallOutputTokens] - Output tokens in last call
+ * @property {{ inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number; reasoningTokens: number; }} [modelMetrics] - Per-model token buckets
+ * @property {{ linesAdded?: number; linesRemoved?: number; filesModifiedCount?: number; }} [codeChanges] - Code edit counts
+ */
+
+/**
+ * @typedef {Object} SessionUsage
+ * @property {string} sessionId - Session identifier
+ * @property {string} source - Data source (e.g. "session.rpc.usage.getMetrics")
+ * @property {string} metricsTimestamp - When metrics were captured (ISO 8601)
+ * @property {string|null} currentModel - Active model or null
+ * @property {number|undefined} totalNanoAiu - Total nano AIU (0 if no usage, undefined if unavailable)
+ * @property {number|undefined} totalUserRequests - Request count or undefined
+ * @property {Array<ModelUsageItem>} modelUsage - Per-model breakdown
+ * @property {{ linesAdded?: number; linesRemoved?: number; filesModifiedCount?: number; }} codeChanges - Code edit counts
+ */
+
+/**
+ * @typedef {Object} ModelUsageItem
+ * @property {string} model - Model identifier
+ * @property {number} requests - Request count
+ * @property {number} inputTokens - Uncached input tokens
+ * @property {number} cachedInputTokens - Cached input tokens (10% cost)
+ * @property {number} cacheWriteTokens - Cache write tokens
+ * @property {number} outputTokens - Output tokens
+ * @property {number} reasoningTokens - Extended thinking tokens (optional cost)
+ * @property {number|undefined} totalNanoAiu - Direct AIU measurement if available
+ */
+
+/**
+ * @typedef {Object} SessionEstimate
+ * @property {string} plan - Normalized plan ID (pro, pro-plus, enterprise, etc.)
+ * @property {string} currency - Always "USD"
+ * @property {number} totalUsd - Estimated USD cost
+ * @property {number} aiCredits - Estimated AI credits (totalUsd / 0.01)
+ * @property {number|undefined} totalNanoAiu - Direct nano AIU if available
+ * @property {number} includedAiCredits - Plan allowance (0 if pooled or free)
+ * @property {number|null} allowanceUsagePercentage - % of allowance used (null if pooled)
+ * @property {boolean} pooledAllowance - true if credits are org-pooled
+ * @property {string} calculationMethod - "copilot-aiu" or "token-estimate"
+ * @property {string} calculationSource - "copilot-model-aiu", "token-rate-estimate", etc.
+ * @property {boolean} billReasoningTokens - Whether reasoning tokens are billed
+ * @property {Array<ModelEstimate>} modelBreakdown - Per-model cost breakdown
+ */
+
+/**
+ * @typedef {Object} ModelEstimate
+ * @property {string} model - Model ID
+ * @property {string} displayName - User-facing model name
+ * @property {number} requests - Request count
+ * @property {number} inputTokens - Uncached input
+ * @property {number} cachedInputTokens - Cached input
+ * @property {number} cacheWriteTokens - Cache writes
+ * @property {number} outputTokens - Output
+ * @property {number} reasoningTokens - Reasoning tokens
+ * @property {number} uncachedInputTokens - Calculated uncached input
+ * @property {number|undefined} totalNanoAiu - Direct AIU if available
+ * @property {number} totalUsd - Estimated USD for this model
+ * @property {number} aiCredits - Estimated credits for this model
+ * @property {string|null} rateTier - "default" or "long-context"
+ * @property {string} creditCalculationMethod - "copilot-aiu" or "token-estimate"
+ * @property {string} creditCalculationSource - How cost was determined
+ */
+
+/**
+ * @typedef {Object} PlanAllowance
+ * @property {number} baseAiCredits - Base monthly allocation
+ * @property {number} flexAiCredits - Flex allocation
+ * @property {number} promotionalAiCredits - Promotional allocation
+ * @property {number} totalAiCredits - Sum total
+ * @property {boolean} pooled - true if org-level pooled, false if personal
+ */
+
 const AI_CREDIT_USD = 0.01;
 const NANO_AI_UNITS_PER_AI_CREDIT = 1_000_000_000;
 const TOKENS_PER_MILLION = 1_000_000;
@@ -58,6 +140,11 @@ const MODEL_RATES = Object.freeze({
     "raptor-mini": rate({ input: 0.25, cachedInput: 0.025, output: 2 }),
 });
 
+/**
+ * Normalize a plan ID to the canonical form.
+ * @param {string|null|undefined} plan - Plan name (case-insensitive, handles aliases)
+ * @returns {string} - Canonical plan ID (pro, pro-plus, max, enterprise, etc.)
+ */
 export function normalizePlanId(plan) {
     const normalized = String(plan ?? "pro").trim().toLowerCase().replace(/[_\s]+/g, "-");
     if (["pro+", "pro-plus", "proplus", "copilot-pro+", "copilot-pro-plus", "github-copilot-pro-plus"].includes(normalized)) {
@@ -75,10 +162,22 @@ export function normalizePlanId(plan) {
     return normalized;
 }
 
+/**
+ * Get the monthly AI credit allowance for a plan.
+ * @param {string|null|undefined} plan - Plan ID or name
+ * @returns {PlanAllowance} - Allowance object with base, flex, promotional, and pooled status
+ */
 export function getPlanAllowance(plan) {
     return PLAN_ALLOTMENTS[normalizePlanId(plan)] ?? PLAN_ALLOTMENTS.pro;
 }
 
+/**
+ * Normalize raw session metrics from session.rpc.usage.getMetrics() into a structured usage object.
+ * @param {string} sessionId - Session identifier
+ * @param {SessionMetrics|null} metrics - Raw metrics from the Copilot SDK
+ * @param {{ source?: string; metricsTimestamp?: string }} [metadata] - Optional metadata
+ * @returns {SessionUsage} - Normalized usage object
+ */
 export function metricsToSessionUsage(sessionId, metrics, metadata = {}) {
     const modelMetrics = metrics?.modelMetrics && typeof metrics.modelMetrics === "object"
         ? metrics.modelMetrics
@@ -113,6 +212,13 @@ export function metricsToSessionUsage(sessionId, metrics, metadata = {}) {
     };
 }
 
+/**
+ * Calculate a session cost estimate from normalized usage data.
+ * Prefers direct nano-AIU if available; falls back to token-rate estimates.
+ * @param {SessionUsage|null} sessionUsage - Normalized session usage
+ * @param {{ plan?: string; billReasoningTokens?: boolean }} [options] - Calculation options
+ * @returns {SessionEstimate} - Cost estimate with breakdown
+ */
 export function calculateSessionEstimate(sessionUsage, options = {}) {
     const plan = normalizePlanId(options.plan ?? sessionUsage?.plan ?? "pro");
     const billReasoningTokens = options.billReasoningTokens === true;
@@ -171,6 +277,12 @@ export function calculateSessionEstimate(sessionUsage, options = {}) {
     };
 }
 
+/**
+ * Aggregate model usage across multiple sessions or data points.
+ * Sums requests, tokens, and costs by model; sorts by cost descending.
+ * @param {Array<ModelEstimate>|null} items - Model usage items to aggregate
+ * @returns {Array<Object>} - Sorted, aggregated per-model breakdown
+ */
 export function aggregateModelUsage(items) {
     const byModel = new Map();
     for (const item of items ?? []) {
@@ -203,17 +315,21 @@ export function aggregateModelUsage(items) {
 }
 
 function resolveKnownModelId(model) {
+    // Normalize model name to canonical ID (e.g. "claude sonnet 4.6" => "claude-sonnet-4.6")
     const raw = String(model ?? "").trim();
     const normalized = MODEL_ALIASES[raw.toLowerCase()] ?? raw.toLowerCase().replace(/\s+/g, "-");
+    // Check if we have a rate entry for this model
     if (MODEL_RATES[normalized]) {
         return normalized;
     }
+    // If not exact match, find longest prefix match (e.g. "gpt-5.4-special" matches "gpt-5.4")
     return Object.keys(MODEL_RATES)
         .filter((candidate) => normalized.startsWith(candidate))
         .sort((a, b) => b.length - a.length)[0] ?? normalized;
 }
 
 function selectRate(rateEntry, usage) {
+    // Long-context models have higher rates after a token threshold (e.g. GPT-5.5 > 272k input tokens)
     if (!rateEntry) {
         return undefined;
     }
@@ -239,6 +355,8 @@ function getBreakdownMethod(modelBreakdown) {
 }
 
 function readDirectAiCredits(value, source) {
+    // If the Copilot SDK reports totalNanoAiu directly, use it instead of token-rate estimation
+    // This is more accurate because it reflects what GitHub actually charged via AIU billing
     const totalNanoAiu = readOptionalNumber(value?.totalNanoAiu);
     if (totalNanoAiu !== undefined) {
         return {
@@ -251,6 +369,7 @@ function readDirectAiCredits(value, source) {
 }
 
 function costForTokens(tokens, perMillionUsd) {
+    // Calculate cost from token count using per-million pricing (e.g. $0.25 per 1M input tokens)
     return round((numberOrZero(tokens) / TOKENS_PER_MILLION) * numberOrZero(perMillionUsd));
 }
 
@@ -280,6 +399,8 @@ function readOptionalNumber(value) {
 }
 
 function round(value) {
+    // Round to 6 decimal places using epsilon to avoid floating-point precision issues
+    // E.g. 0.1 + 0.2 in JavaScript = 0.30000000000000004, but we want 0.3
     return Math.round((Number(value ?? 0) + Number.EPSILON) * 1000000) / 1000000;
 }
 

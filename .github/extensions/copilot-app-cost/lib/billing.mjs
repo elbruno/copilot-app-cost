@@ -1,5 +1,35 @@
+/**
+ * @typedef {Object} BillingRequest
+ * @property {string} scope - "user" or "organization"
+ * @property {string} account - GitHub username or org name
+ * @property {number} year - Year (e.g. 2026)
+ * @property {number} month - Month 1-12
+ * @property {string} apiVersion - GitHub API version header
+ */
+
+/**
+ * @typedef {Object} BillingResponse
+ * @property {string} source - "GITHUB BILLING"
+ * @property {string} scope - "user" or "organization"
+ * @property {string} account - GitHub account name
+ * @property {string} freshness - "point-in-time"
+ * @property {string} confidence - "official"
+ * @property {string} retrievedAt - ISO 8601 timestamp
+ * @property {{ year: number; month: number }} timePeriod - Billing period
+ * @property {{ grossQuantity: number; grossAmount: number; discountQuantity: number; discountAmount: number; netQuantity: number; netAmount: number }} totals - Aggregate usage
+ * @property {Array<Object>} usageByModel - Per-model usage breakdown
+ * @property {string} reliability - "authoritative-scope" or "managed-license-or-no-personal-usage"
+ * @property {boolean} availability - true if data available
+ * @property {string|null} managedLicenseNote - Explanation if no personal usage
+ */
+
 export const BILLING_API_VERSION = "2026-03-10";
 
+/**
+ * Validate a GitHub username or organization name.
+ * @param {string|unknown} value - Account name to validate
+ * @returns {boolean} - true if valid (alphanumeric + hyphens, 1-39 chars, no leading hyphen)
+ */
 export function validateAccountName(value) {
     return typeof value === "string" && /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(value);
 }
@@ -19,6 +49,12 @@ export function buildBillingRequest(settings, authStatus) {
     };
 }
 
+/**
+ * Build fixed `gh api` arguments for a billing request.
+ * @param {BillingRequest} request - Billing request details
+ * @returns {Array<string>} - Fixed arguments for execFile("gh", args)
+ * @throws {Error} - If account name is invalid
+ */
 export function buildGhArgs(request) {
     if (!validateAccountName(request?.account)) {
         throw new Error(`Invalid ${request?.scope ?? "billing"} account.`);
@@ -47,6 +83,13 @@ export function buildGhArgs(request) {
     ];
 }
 
+/**
+ * Normalize and structure a GitHub Billing API response.
+ * @param {BillingRequest} request - Original request (for context)
+ * @param {Object} payload - Raw API response payload
+ * @param {{ retrievedAt?: string }} [options] - Options
+ * @returns {BillingResponse} - Normalized response
+ */
 export function normalizeBillingResponse(request, payload, options = {}) {
     const usageItems = Array.isArray(payload?.usageItems) ? payload.usageItems : [];
     const totals = usageItems.reduce((acc, item) => ({
@@ -122,6 +165,12 @@ export function normalizeBillingResponse(request, payload, options = {}) {
     };
 }
 
+/**
+ * Classify a billing API error to an actionable error code.
+ * @param {string|unknown} message - Error message
+ * @param {string} scope - "user" or "organization"
+ * @returns {string} - Error classification code
+ */
 export function classifyBillingError(message, scope) {
     const text = String(message ?? "");
     if (/needs the "user" scope/i.test(text)) {

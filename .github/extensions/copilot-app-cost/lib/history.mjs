@@ -7,6 +7,12 @@ export function getSessionStateDirectory(options = {}) {
     return path.join(copilotHome, "session-state");
 }
 
+/**
+ * List recent completed sessions from local session state.
+ * @param {string} currentSessionId - Current session ID (to filter out active sessions)
+ * @param {{ limit?: number; [key: string]: unknown }} [options] - Options
+ * @returns {Array<SessionUsageFromHistory>} - Recent session usage estimates
+ */
 export function listRecentSessionUsages(currentSessionId, options = {}) {
     const directory = getSessionStateDirectory(options);
     if (!fs.existsSync(directory)) {
@@ -37,6 +43,12 @@ export function listRecentSessionUsages(currentSessionId, options = {}) {
         .sort((left, right) => Date.parse(right.updatedAt ?? "") - Date.parse(left.updatedAt ?? ""));
 }
 
+/**
+ * Read session usage data from a session's events.jsonl file.
+ * @param {string} sessionId - Session identifier
+ * @param {{ eventsPath?: string; currentSessionId?: string; [key: string]: unknown }} [options] - Options
+ * @returns {SessionUsageFromHistory|null} - Session usage estimate, or null if no metrics found
+ */
 export function readSessionUsageFromEvents(sessionId, options = {}) {
     const eventsPath = options.eventsPath ?? path.join(getSessionStateDirectory(options), sessionId, "events.jsonl");
     if (!fs.existsSync(eventsPath)) {

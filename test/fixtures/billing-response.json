@@ -1,0 +1,40 @@
+{
+  "timePeriod": {
+    "year": 2026,
+    "month": 6
+  },
+  "product": "Copilot",
+  "user": {
+    "id": 12345,
+    "login": "elbruno",
+    "type": "User"
+  },
+  "usageItems": [
+    {
+      "model": "gpt-5-mini",
+      "product": "Copilot",
+      "sku": "copilot-gpt-5-mini",
+      "unitType": "request",
+      "pricePerUnit": 0.025,
+      "grossQuantity": 45,
+      "grossAmount": 1.125,
+      "discountQuantity": 0,
+      "discountAmount": 0,
+      "netQuantity": 45,
+      "netAmount": 1.125
+    },
+    {
+      "model": "claude-sonnet-4.6",
+      "product": "Copilot",
+      "sku": "copilot-claude-sonnet-4.6",
+      "unitType": "request",
+      "pricePerUnit": 0.05,
+      "grossQuantity": 28,
+      "grossAmount": 1.4,
+      "discountQuantity": 0,
+      "discountAmount": 0,
+      "netQuantity": 28,
+      "netAmount": 1.4
+    }
+  ]
+}

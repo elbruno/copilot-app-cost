@@ -1,0 +1,43 @@
+{
+  "currentModel": "gpt-5-mini",
+  "totalNanoAiu": 425000000,
+  "totalUserRequests": 5,
+  "totalPremiumRequestCost": 0,
+  "totalApiDurationMs": 2450,
+  "sessionStartTime": "2026-06-19T10:00:00Z",
+  "lastCallInputTokens": 850,
+  "lastCallOutputTokens": 420,
+  "codeChanges": {
+    "linesAdded": 45,
+    "linesRemoved": 12,
+    "filesModifiedCount": 3
+  },
+  "modelMetrics": {
+    "gpt-5-mini": {
+      "requests": {
+        "count": 3
+      },
+      "usage": {
+        "inputTokens": 2100,
+        "outputTokens": 950,
+        "cacheReadTokens": 450,
+        "cacheWriteTokens": 200,
+        "reasoningTokens": 0
+      },
+      "totalNanoAiu": 250000000
+    },
+    "claude-sonnet-4.6": {
+      "requests": {
+        "count": 2
+      },
+      "usage": {
+        "inputTokens": 1500,
+        "outputTokens": 680,
+        "cacheReadTokens": 100,
+        "cacheWriteTokens": 0,
+        "reasoningTokens": 0
+      },
+      "totalNanoAiu": 175000000
+    }
+  }
+}
