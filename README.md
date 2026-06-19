@@ -1,35 +1,52 @@
 # copilot-app-cost
 
-Project-scoped GitHub Copilot Canvas extension for:
-- near-real-time active-session AI-credit and USD estimates
-- model and token-bucket breakdowns
-- compatible local completed-session history
-- official GitHub billing usage for authorized user or organization scopes
-- read-only agent-callable cost and usage capabilities
+Monitor AI-credit usage from your active GitHub Copilot session and official GitHub billing.
 
-## Quick Start
+## Quick Start (1 minute) ⚡
 
-See **[`docs/INSTALL.md`](docs/INSTALL.md)** for setup, first run, and troubleshooting.
+Open **GitHub Copilot App** → Click **"Add to panel..."** → **"Import canvas from gist/URL"** → Paste:
+
+```
+https://gist.githubusercontent.com/elbruno/copilot-app-cost-canvas/raw/main/extension.mjs
+```
+
+**Done!** Canvas shows real-time AI-credit costs.
+
+## What It Shows
+
+- **Live Metrics**: Real-time session cost (model, tokens, credits, USD)
+- **Official Billing**: Your GitHub AI-credit usage
+- **Session History**: Cost of past sessions from local storage
+- **Settings**: Refresh rates, alert thresholds, billing scope
+- **Diagnostics**: Provider status and debug info
 
 ## Documentation
 
-- **Install & Setup:** [`docs/INSTALL.md`](docs/INSTALL.md)
-- **User Guide:** [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md)
-- **API Reference:** [`docs/API.md`](docs/API.md)
-- **FAQ:** [`docs/FAQ.md`](docs/FAQ.md)
-- **Security & Privacy:** [`docs/SECURITY.md`](docs/SECURITY.md)
-- **Product Spec:** [`docs/PRD.md`](docs/PRD.md)
-- **Architecture:** [`docs/architecture.md`](docs/architecture.md)
-- **Data Sources:** [`docs/data-sources.md`](docs/data-sources.md)
-- **Implementation Plan:** [`docs/implementation-plan.md`](docs/implementation-plan.md)
-- **Phase 0 Spike Results:** [`docs/spikes/`](docs/spikes/)
+- **Install & Setup:** [`docs/INSTALL.md`](docs/INSTALL.md) — 1-minute setup guide
+- **User Guide:** [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) — How to read the dashboard
+- **API Reference:** [`docs/API.md`](docs/API.md) — Canvas capabilities
+- **FAQ:** [`docs/FAQ.md`](docs/FAQ.md) — Common questions
+- **Security & Privacy:** [`docs/SECURITY.md`](docs/SECURITY.md) — Data handling
 
-## Location
+## Key Features
 
-- Extension: `.github/extensions/copilot-app-cost`
+✅ Real-time session cost (live metrics)  
+✅ Official GitHub billing data  
+✅ Local session history  
+✅ Configurable settings (refresh rates, alerts)  
+✅ No token storage, no prompt access  
+✅ Read-only, safe for agent use  
+✅ 88 tests passing  
 
-## Important rules
-- `LIVE ESTIMATE` and `GITHUB BILLING` stay separate.
-- Unavailable data is shown as unavailable, never zero.
-- No prompts, source code, or transcripts are read or persisted.
-- Billing access depends on valid GitHub authentication and scope-specific permissions.
+## Setup
+
+```bash
+# 1. Open GitHub Copilot App (VS Code, GitHub.com, or CLI)
+# 2. Click: Add to panel → Import canvas from gist/URL
+# 3. Paste the gist URL above
+# 4. (Optional) For billing: gh auth refresh -h github.com -s user
+```
+
+---
+
+**Questions?** See [`docs/INSTALL.md`](docs/INSTALL.md) or [`docs/FAQ.md`](docs/FAQ.md)
