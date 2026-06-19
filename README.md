@@ -7,11 +7,23 @@ Project-scoped GitHub Copilot Canvas extension for:
 - official GitHub billing usage for authorized user or organization scopes
 - read-only agent-callable cost and usage capabilities
 
+## Quick Start
+
+See **[`docs/INSTALL.md`](docs/INSTALL.md)** for setup, first run, and troubleshooting.
+
+## Documentation
+
+- **Install & Setup:** `docs/INSTALL.md`
+- **Product spec:** `docs/PRD.md`
+- **Architecture:** `docs/architecture.md`
+- **Data sources:** `docs/data-sources.md`
+- **Implementation plan:** `docs/implementation-plan.md`
+- **Phase 0 spike results:** `docs/spikes/`
+- **Manual validation:** `docs/manual-validation.md`
+
 ## Location
+
 - Extension: `.github/extensions/copilot-app-cost`
-- PRD: `docs/PRD.md`
-- Spike results: `docs/spikes/`
-- Manual validation: `docs/manual-validation.md`
 
 ## Important rules
 - `LIVE ESTIMATE` and `GITHUB BILLING` stay separate.
