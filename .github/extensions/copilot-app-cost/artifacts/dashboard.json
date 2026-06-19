@@ -1,0 +1,35 @@
+{
+  "description": "Canvas state schema for copilot-app-cost",
+  "version": "0.1.0",
+  "schema": {
+    "liveEstimate": {
+      "type": "object|null",
+      "description": "Current session cost estimate"
+    },
+    "billingData": {
+      "type": "object|null",
+      "description": "GitHub official billing usage"
+    },
+    "billingScope": {
+      "type": "string",
+      "enum": ["user", "org"],
+      "default": "user"
+    },
+    "sessions": {
+      "type": "array",
+      "description": "Local session history"
+    },
+    "settings": {
+      "type": "object",
+      "description": "User preferences"
+    },
+    "ui": {
+      "type": "object",
+      "description": "UI state (activeTab, expanded sections, etc)"
+    },
+    "providers": {
+      "type": "object",
+      "description": "Status of each data provider"
+    }
+  }
+}
