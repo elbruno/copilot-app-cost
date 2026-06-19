@@ -7,7 +7,7 @@ Monitor AI-credit usage from your active GitHub Copilot session and official Git
 Open **GitHub Copilot App** → Click **"Add to panel..."** → **"Import canvas from gist/URL"** → Paste:
 
 ```
-https://gist.githubusercontent.com/elbruno/copilot-app-cost-canvas/raw/main/extension.mjs
+https://gist.githubusercontent.com/elbruno/43fa7650da08f976d6347492c8af9241/raw/extension.mjs
 ```
 
 **Done!** Canvas shows real-time AI-credit costs.

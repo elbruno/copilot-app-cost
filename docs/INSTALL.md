@@ -13,7 +13,7 @@ Click **"Add to panel..."** → **"Import canvas from gist/URL"**
 ### Step 2: Paste the Gist URL
 
 ```
-https://gist.githubusercontent.com/elbruno/copilot-app-cost-canvas/raw/main/extension.mjs
+https://gist.githubusercontent.com/elbruno/43fa7650da08f976d6347492c8af9241/raw/extension.mjs
 ```
 
 Click **Import**. ✅ Canvas opens in your panel!
