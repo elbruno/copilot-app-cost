@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Copilot App Cost</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; }
+      .toolbar, .nav { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+      .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+      .card, .panel { border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); border-radius: 12px; padding: 12px; background: color-mix(in srgb, Canvas 92%, transparent); }
+      .muted { opacity: 0.78; }
+      .statusline { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+      .badge { display: inline-flex; gap: 6px; align-items: center; border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); border-radius: 999px; padding: 4px 10px; font-size: 12px; }
+      .ok::before { content: "●"; color: #1a7f37; }
+      .warn::before { content: "▲"; color: #9a6700; }
+      .bad::before { content: "■"; color: #cf222e; }
+      button, select, input { padding: 8px 10px; border-radius: 8px; border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); background: Canvas; color: CanvasText; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th, td { text-align: left; padding: 6px; border-bottom: 1px solid color-mix(in srgb, CanvasText 10%, transparent); vertical-align: top; }
+      .section { display: none; margin-top: 12px; }
+      .section.active { display: block; }
+      .metric { font-size: 28px; font-weight: 700; margin: 6px 0; }
+      .small { font-size: 12px; }
+      .bars { display: grid; gap: 8px; }
+      .bar-row { display: grid; gap: 4px; }
+      .bar-track { height: 10px; border-radius: 999px; background: color-mix(in srgb, CanvasText 8%, transparent); overflow: hidden; }
+      .bar-fill { height: 100%; background: #2f81f7; }
+      pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+      details { margin-top: 8px; }
+      form.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+      .full { grid-column: 1 / -1; }
+    </style>
+  </head>
+  <body>
+    <div class="toolbar">
+      <h1 style="margin:0;">Copilot App Cost</h1>
+      <button id="refreshBtn">Refresh</button>
+      <button id="exportBtn">Export JSON</button>
+      <span class="muted small">Canvas instance: <code>__INSTANCE_ID__</code></span>
+    </div>
+    <div id="statusline" class="statusline" aria-live="polite"></div>
+    <div id="alerts" class="panel" hidden></div>
+    <div id="overview" class="cards"></div>
+
+    <div class="nav" role="tablist" aria-label="Copilot App Cost sections">
+      <button data-tab="live">Live Session</button>
+      <button data-tab="billing">Billing</button>
+      <button data-tab="sessions">Sessions</button>
+      <button data-tab="settings">Settings</button>
+      <button data-tab="diagnostics">Diagnostics</button>
+    </div>
+
+    <section id="live" class="section active"></section>
+    <section id="billing" class="section"></section>
+    <section id="sessions" class="section"></section>
+    <section id="settings" class="section"></section>
+    <section id="diagnostics" class="section"></section>
+
+    <script>
+      const state = { dashboard: null, activeTab: 'live' };
+
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#39;');
+      }
+
+      function fmtNumber(value, fractionDigits = 2) {
+        return typeof value === 'number' && Number.isFinite(value)
+          ? value.toLocaleString(undefined, { maximumFractionDigits: fractionDigits, minimumFractionDigits: fractionDigits })
+          : 'unavailable';
+      }
+
+      function fmtMaybeNumber(value, fractionDigits = 2) {
+        return typeof value === 'number' && Number.isFinite(value)
+          ? value.toLocaleString(undefined, { maximumFractionDigits: fractionDigits, minimumFractionDigits: 0 })
+          : 'unavailable';
+      }
+
+      function timeAgo(value) {
+        if (!value) return 'unavailable';
+        const delta = Math.max(Date.now() - Date.parse(value), 0);
+        const seconds = Math.round(delta / 1000);
+        if (seconds < 60) return seconds + 's ago';
+        const minutes = Math.round(seconds / 60);
+        if (minutes < 60) return minutes + 'm ago';
+        const hours = Math.round(minutes / 60);
+        return hours + 'h ago';
+      }
+
+      function renderStatusline(dashboard) {
+        const entries = [dashboard.providerStatus.live, dashboard.providerStatus.billing, dashboard.providerStatus.sessions].map((item) => {
+          const cls = item.available ? (item.stale ? 'warn' : 'ok') : 'bad';
+          const age = item.lastSuccessAt ? 'Updated ' + timeAgo(item.lastSuccessAt) : 'No successful refresh yet';
+          return '<span class="badge ' + cls + '">' + item.name + ' • ' + age + '</span>';
+        });
+        document.getElementById('statusline').innerHTML = entries.join('');
+      }
+
+      function renderOverview(dashboard) {
+        const cards = [];
+        const current = dashboard.overview.currentSession;
+        if (current) {
+          cards.push('<div class="card"><div class="small muted">' + current.title + '</div><div class="metric">' + fmtMaybeNumber(current.aiCredits) + ' AI credits</div><div>~$' + fmtNumber(current.totalUsd) + ' USD</div><div class="small muted">' + current.source + ' • ' + current.calculationMethod + '</div></div>');
+        } else {
+          cards.push('<div class="card"><div class="small muted">Current Session</div><div>No active Copilot session metrics are available.</div></div>');
+        }
+        const billing = dashboard.overview.officialMonthlyUsage;
+        if (billing) {
+          cards.push('<div class="card"><div class="small muted">' + billing.title + '</div><div class="metric">' + fmtMaybeNumber(billing.netQuantity) + ' net AI credits</div><div>$' + fmtNumber(billing.netAmount) + ' net</div><div class="small muted">GITHUB BILLING • ' + billing.scope + '/' + billing.account + '</div></div>');
+        } else {
+          cards.push('<div class="card"><div class="small muted">Month-to-Date</div><div>Official billing data is unavailable for this scope.</div></div>');
+        }
+        const remaining = dashboard.overview.remainingAllowance;
+        if (remaining) {
+          cards.push('<div class="card"><div class="small muted">' + remaining.title + '</div><div class="metric">' + fmtMaybeNumber(remaining.creditsRemaining) + ' AI credits</div><div>' + fmtMaybeNumber(remaining.usagePercent, 1) + '% used</div><div class="small muted">' + remaining.reliability + '</div></div>');
+        }
+        const additional = dashboard.overview.additionalUsage;
+        if (additional) {
+          cards.push('<div class="card"><div class="small muted">' + additional.title + '</div><div class="metric">$' + fmtNumber(additional.netAmount) + '</div><div class="small muted">' + additional.source + '</div></div>');
+        }
+        document.getElementById('overview').innerHTML = cards.join('');
+      }
+
+      function renderBars(items, labelKey, valueKey, formatter) {
+        const max = Math.max(...items.map((item) => Number(item[valueKey] || 0)), 0);
+        if (items.length <= 0 || max <= 0) {
+          return '<div class="muted">No compatible data yet.</div>';
+        }
+        return '<div class="bars">' + items.map((item) => {
+          const value = Number(item[valueKey] || 0);
+          const width = Math.max((value / max) * 100, 1);
+          const label = item[labelKey] || item.displayName || item.model || item.sessionId;
+          return '<div class="bar-row"><div class="small">' + label + ' — ' + formatter(value, item) + '</div><div class="bar-track" aria-label="' + label + '"><div class="bar-fill" style="width:' + width + '%"></div></div></div>';
+        }).join('') + '</div>';
+      }
+
+      function renderLive(dashboard) {
+        const live = dashboard.live;
+        const trend = dashboard.charts.liveTrend.slice(-10);
+        const section = document.getElementById('live');
+        if (!live || !live.usage) {
+          section.innerHTML = '<div class="panel">No active live metrics are available right now.</div>';
+          return;
+        }
+        const models = Array.isArray(live.usage.modelUsage) ? live.usage.modelUsage : [];
+        section.innerHTML = `
+          <div class="panel">
+            <h2>Live Session</h2>
+            <p class="muted small">${live.source} • ${live.confidence} • updated ${timeAgo(live.observedAt)}</p>
+            <table>
+              <tr><th>Session id</th><td>${live.usage.sessionId}</td></tr>
+              <tr><th>Active model</th><td>${live.usage.currentModel ?? 'unavailable'}</td></tr>
+              <tr><th>Requests</th><td>${fmtMaybeNumber(live.usage.totalUserRequests, 0)}</td></tr>
+              <tr><th>AI credits</th><td>${fmtMaybeNumber(live.estimate?.aiCredits)}</td></tr>
+              <tr><th>Estimated USD</th><td>$${fmtNumber(live.estimate?.totalUsd)}</td></tr>
+              <tr><th>Calculation</th><td>${live.estimate?.calculationMethod ?? 'unavailable'}</td></tr>
+              <tr><th>Last call input</th><td>${fmtMaybeNumber(live.usage.lastCallInputTokens, 0)}</td></tr>
+              <tr><th>Last call output</th><td>${fmtMaybeNumber(live.usage.lastCallOutputTokens, 0)}</td></tr>
+              <tr><th>API duration</th><td>${fmtMaybeNumber(live.usage.totalApiDurationMs, 0)} ms</td></tr>
+              <tr><th>Session start</th><td>${live.usage.sessionStartTime ?? 'unavailable'}</td></tr>
+            </table>
+            <h3>Token buckets by model</h3>
+            <table><thead><tr><th>Model</th><th>Requests</th><th>Input</th><th>Cached input</th><th>Cache write</th><th>Output</th><th>Reasoning</th></tr></thead><tbody>
+              ${models.map((item) => `<tr><td>${item.model}</td><td>${fmtMaybeNumber(item.requests, 0)}</td><td>${fmtMaybeNumber(item.inputTokens, 0)}</td><td>${fmtMaybeNumber(item.cachedInputTokens, 0)}</td><td>${fmtMaybeNumber(item.cacheWriteTokens, 0)}</td><td>${fmtMaybeNumber(item.outputTokens, 0)}</td><td>${fmtMaybeNumber(item.reasoningTokens, 0)}</td></tr>`).join('')}
+            </tbody></table>
+            <h3>Cumulative live-session cost over time</h3>
+            ${renderBars(trend, 'at', 'aiCredits', (value) => fmtMaybeNumber(value) + ' AI credits')}
+            <details><summary>Raw normalized JSON</summary><pre>${escapeHtml(JSON.stringify(live, null, 2))}</pre></details>
+          </div>`;
+      }
+
+      function renderBilling(dashboard) {
+        const billing = dashboard.billing;
+        const section = document.getElementById('billing');
+        if (!billing || billing.availability === false) {
+          section.innerHTML = '<div class="panel"><h2>Billing</h2><p>Official billing data is unavailable for this scope.</p><p class="muted small">' + (billing?.error || 'Your Copilot license may be managed by an organization, or your account may not have the required billing permission.') + '</p></div>';
+          return;
+        }
+        section.innerHTML = `
+          <div class="panel">
+            <h2>Billing</h2>
+            <p class="muted small">GITHUB BILLING • ${billing.scope}/${billing.account} • updated ${timeAgo(billing.retrievedAt)}</p>
+            <table>
+              <tr><th>Account scope</th><td>${billing.scope}</td></tr>
+              <tr><th>Account name</th><td>${billing.account}</td></tr>
+              <tr><th>Time period</th><td>${billing.timePeriod?.year ?? ''}-${billing.timePeriod?.month ?? ''}</td></tr>
+              <tr><th>Gross quantity</th><td>${fmtMaybeNumber(billing.totals.grossQuantity)}</td></tr>
+              <tr><th>Discount quantity</th><td>${fmtMaybeNumber(billing.totals.discountQuantity)}</td></tr>
+              <tr><th>Net quantity</th><td>${fmtMaybeNumber(billing.totals.netQuantity)}</td></tr>
+              <tr><th>Gross amount</th><td>$${fmtNumber(billing.totals.grossAmount)}</td></tr>
+              <tr><th>Discount amount</th><td>$${fmtNumber(billing.totals.discountAmount)}</td></tr>
+              <tr><th>Net amount</th><td>$${fmtNumber(billing.totals.netAmount)}</td></tr>
+              <tr><th>Permission status</th><td>${billing.permissionStatus}</td></tr>
+              <tr><th>API version</th><td>${billing.apiVersion}</td></tr>
+            </table>
+            ${billing.managedLicenseNote ? '<p class="muted small">' + billing.managedLicenseNote + '</p>' : ''}
+            <h3>Usage by model</h3>
+            ${renderBars(billing.usageByModel || [], 'model', 'netQuantity', (value) => fmtMaybeNumber(value) + ' net AI credits')}
+            <table><thead><tr><th>Model</th><th>Gross</th><th>Discount</th><th>Net</th><th>Net USD</th></tr></thead><tbody>
+              ${(billing.usageByModel || []).map((item) => `<tr><td>${item.model}</td><td>${fmtMaybeNumber(item.grossQuantity)}</td><td>${fmtMaybeNumber(item.discountQuantity)}</td><td>${fmtMaybeNumber(item.netQuantity)}</td><td>$${fmtNumber(item.netAmount)}</td></tr>`).join('')}
+            </tbody></table>
+          </div>`;
+      }
+
+      function renderSessions(dashboard) {
+        const sessions = dashboard.sessions;
+        const section = document.getElementById('sessions');
+        if (!sessions.items || sessions.items.length <= 0) {
+          section.innerHTML = '<div class="panel">No compatible local Copilot sessions were found.</div>';
+          return;
+        }
+        section.innerHTML = `
+          <div class="panel">
+            <h2>Recent sessions</h2>
+            ${renderBars(sessions.mostExpensive || [], 'sessionId', 'aiCredits', (value, item) => fmtMaybeNumber(value) + ' AI credits' + (item.totalUsd !== null ? ' / $' + fmtNumber(item.totalUsd) : ''))}
+            <table><thead><tr><th>Session</th><th>Status</th><th>Model</th><th>AI credits</th><th>USD</th><th>Updated</th></tr></thead><tbody>
+              ${(sessions.items || []).map((item) => `<tr><td><div>${item.sessionId}</div><div class="small muted">${item.sessionName ?? ''}</div></td><td>${item.status}</td><td>${item.currentModel ?? 'unavailable'}</td><td>${fmtMaybeNumber(item.aiCredits)}</td><td>$${fmtNumber(item.totalUsd)}</td><td>${timeAgo(item.updatedAt)}</td></tr>`).join('')}
+            </tbody></table>
+          </div>`;
+      }
+
+      function renderSettings(dashboard) {
+        const settings = dashboard.settings;
+        document.getElementById('settings').innerHTML = `
+          <div class="panel">
+            <h2>Settings</h2>
+            <form id="settingsForm" class="grid">
+              <label><div class="small muted">Billing scope</div><select name="billingScope"><option value="user" ${settings.billingScope === 'user' ? 'selected' : ''}>User</option><option value="organization" ${settings.billingScope === 'organization' ? 'selected' : ''}>Organization</option></select></label>
+              <label><div class="small muted">User account</div><input name="userAccount" value="${settings.userAccount || dashboard.auth.login || ''}" /></label>
+              <label><div class="small muted">Organization account</div><input name="organizationAccount" value="${settings.organizationAccount || ''}" /></label>
+              <label><div class="small muted">Billing year</div><input type="number" name="billingYear" min="2024" max="2100" value="${settings.billingYear}" /></label>
+              <label><div class="small muted">Billing month</div><input type="number" name="billingMonth" min="1" max="12" value="${settings.billingMonth}" /></label>
+              <label><div class="small muted">Live refresh seconds</div><input type="number" name="liveRefreshSeconds" min="2" max="10" value="${settings.liveRefreshSeconds}" /></label>
+              <label><div class="small muted">Local history refresh seconds</div><input type="number" name="sessionHistoryRefreshSeconds" min="10" max="300" value="${settings.sessionHistoryRefreshSeconds}" /></label>
+              <label><div class="small muted">Billing refresh minutes</div><input type="number" name="billingRefreshMinutes" min="1" max="60" value="${settings.billingRefreshMinutes}" /></label>
+              <label><div class="small muted">Session alert AI credits</div><input type="number" step="0.01" name="sessionAiCredits" value="${settings.alerts.sessionAiCredits ?? ''}" /></label>
+              <label><div class="small muted">Session alert USD</div><input type="number" step="0.01" name="sessionUsd" value="${settings.alerts.sessionUsd ?? ''}" /></label>
+              <label><div class="small muted">Monthly usage % alert</div><input type="number" step="0.1" name="monthlyUsagePercent" value="${settings.alerts.monthlyUsagePercent ?? ''}" /></label>
+              <label><div class="small muted">Monthly net USD alert</div><input type="number" step="0.01" name="monthlyNetUsd" value="${settings.alerts.monthlyNetUsd ?? ''}" /></label>
+              <label><div class="small muted">Bill reasoning tokens</div><select name="billReasoningTokens"><option value="false" ${!settings.billReasoningTokens ? 'selected' : ''}>No</option><option value="true" ${settings.billReasoningTokens ? 'selected' : ''}>Yes</option></select></label>
+              <div class="full"><button type="submit">Save settings</button> <button type="button" id="resetSettingsBtn">Reset</button></div>
+            </form>
+          </div>`;
+
+        document.getElementById('settingsForm').addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const form = new FormData(event.target);
+          const payload = {
+            billingScope: form.get('billingScope'),
+            userAccount: form.get('userAccount'),
+            organizationAccount: form.get('organizationAccount'),
+            billingYear: Number(form.get('billingYear')),
+            billingMonth: Number(form.get('billingMonth')),
+            liveRefreshSeconds: Number(form.get('liveRefreshSeconds')),
+            sessionHistoryRefreshSeconds: Number(form.get('sessionHistoryRefreshSeconds')),
+            billingRefreshMinutes: Number(form.get('billingRefreshMinutes')),
+            billReasoningTokens: form.get('billReasoningTokens') === 'true',
+            alerts: {
+              sessionAiCredits: form.get('sessionAiCredits'),
+              sessionUsd: form.get('sessionUsd'),
+              monthlyUsagePercent: form.get('monthlyUsagePercent'),
+              monthlyNetUsd: form.get('monthlyNetUsd'),
+            },
+          };
+          await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+          await loadDashboard(true);
+        });
+
+        document.getElementById('resetSettingsBtn').addEventListener('click', async () => {
+          await fetch('/api/settings/reset', { method: 'POST' });
+          await loadDashboard(true);
+        });
+      }
+
+      function renderDiagnostics(dashboard) {
+        document.getElementById('diagnostics').innerHTML = '<div class="panel"><h2>Diagnostics</h2><pre>' + escapeHtml(JSON.stringify(dashboard.diagnostics, null, 2)) + '</pre></div>';
+      }
+
+      function renderAlerts(dashboard) {
+        const panel = document.getElementById('alerts');
+        if (!dashboard.alerts || dashboard.alerts.length <= 0) {
+          panel.hidden = true;
+          panel.innerHTML = '';
+          return;
+        }
+        panel.hidden = false;
+        panel.innerHTML = '<strong>Warnings and errors</strong><ul>' + dashboard.alerts.map((item) => '<li>' + item.message + '</li>').join('') + '</ul>';
+      }
+
+      function render() {
+        const dashboard = state.dashboard;
+        if (!dashboard) return;
+        renderStatusline(dashboard);
+        renderAlerts(dashboard);
+        renderOverview(dashboard);
+        renderLive(dashboard);
+        renderBilling(dashboard);
+        renderSessions(dashboard);
+        renderSettings(dashboard);
+        renderDiagnostics(dashboard);
+        document.querySelectorAll('.section').forEach((el) => el.classList.toggle('active', el.id === state.activeTab));
+      }
+
+      async function loadDashboard(force = false) {
+        const response = await fetch('/api/dashboard' + (force ? '?force=true' : ''), { cache: 'no-store' });
+        state.dashboard = await response.json();
+        render();
+      }
+
+      document.querySelectorAll('[data-tab]').forEach((button) => button.addEventListener('click', () => {
+        state.activeTab = button.dataset.tab;
+        render();
+      }));
+
+      document.getElementById('refreshBtn').addEventListener('click', async () => {
+        await fetch('/api/refresh', { method: 'POST' });
+        await loadDashboard(true);
+      });
+      document.getElementById('exportBtn').addEventListener('click', () => {
+        window.location.href = '/api/export';
+      });
+
+      loadDashboard(true).catch((error) => {
+        document.body.insertAdjacentHTML('beforeend', '<pre>' + escapeHtml(String(error)) + '</pre>');
+      });
+      setInterval(() => loadDashboard(false).catch(() => {}), 2000);
+    </script>
+  </body>
+</html>

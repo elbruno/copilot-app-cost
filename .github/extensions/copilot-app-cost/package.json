@@ -1,0 +1,7 @@
+{
+  "name": "copilot-app-cost",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Project-scoped GitHub Copilot Canvas extension for session and billing cost visibility"
+}
