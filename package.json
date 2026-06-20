@@ -4,7 +4,11 @@
   "private": true,
   "type": "module",
   "description": "Project-scoped GitHub Copilot Canvas extension for session and billing cost visibility",
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  },
   "scripts": {
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "bundle": "esbuild .github/extensions/copilot-app-cost/extension.mjs --bundle --format=esm --platform=node --external:@github/copilot-sdk/* --outfile=dist/extension.mjs"
   }
 }

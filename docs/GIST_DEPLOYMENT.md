@@ -8,21 +8,36 @@ To make installation as simple as "paste URL and import", we need to create a Gi
 
 1. Go to https://gist.github.com
 2. Create a new public gist named `copilot-app-cost-canvas` (or similar)
-3. Add **one file**: `extension.mjs`
-4. Copy the contents of `.github/extensions/copilot-app-cost/extension.mjs` into the gist
-5. Click "Create public gist"
-6. Copy the gist URL (e.g., `https://gist.github.com/elbruno/abc123...`)
-7. Click the "Raw" button to get the raw content URL (e.g., `https://gist.githubusercontent.com/elbruno/abc123.../raw/main/extension.mjs`)
+3. Add **two files**:
+   - `copilot-extension.json` (the extension manifest — **required**, or the import fails with "Gist is missing `copilot-extension.json`")
+   - `extension.mjs` (the **bundled**, self-contained extension)
+4. For `copilot-extension.json`, copy the contents of `.github/extensions/copilot-app-cost/copilot-extension.json`
+5. For `extension.mjs`, run `npm run bundle` first and copy the contents of `dist/extension.mjs`
+   (the raw `.github/extensions/copilot-app-cost/extension.mjs` imports from `./lib/*.mjs`, which **cannot** be resolved in a flat gist — you must use the bundled output)
+6. Click "Create public gist"
+7. Copy the gist URL (e.g., `https://gist.github.com/elbruno/abc123...`)
+8. Click the "Raw" button on `extension.mjs` to get the raw content URL
 
 ### Option 2: Using GitHub CLI
 
 ```bash
-# Create gist with extension content
+# Bundle the extension into a single self-contained file
+npm run bundle
+
+# Create gist with the manifest + bundled extension
 gh gist create \
   --public \
   --description "GitHub Copilot App Canvas: AI-credit monitoring" \
-  --filename "extension.mjs" \
-  .github/extensions/copilot-app-cost/extension.mjs
+  .github/extensions/copilot-app-cost/copilot-extension.json \
+  dist/extension.mjs
+```
+
+To update an existing gist instead:
+
+```bash
+npm run bundle
+gh gist edit <GIST_ID> --add .github/extensions/copilot-app-cost/copilot-extension.json
+gh gist edit <GIST_ID> -f extension.mjs dist/extension.mjs
 ```
 
 This will output the gist URL. Get the raw URL by:
