@@ -115,14 +115,15 @@ diff extension-current.mjs .github/extensions/copilot-app-cost/extension.mjs
 
 ## Current Status
 
-⏳ **Gist not yet created** — Follow steps above to create it once the extension is finalized.
+✅ **Gist created and deployed** at `https://gist.github.com/elbruno/43fa7650da08f976d6347492c8af9241`
 
-Once created, update:
-- README.md with the gist URL
-- docs/INSTALL.md with the gist URL
-- Push to GitHub
+The gist contains:
+- `copilot-extension.json` — extension manifest (required)
+- `extension.mjs` — bundled, self-contained extension code
 
-Then users can install with a single paste!
+Both README.md and docs/INSTALL.md have been updated with the gist URL.
+
+When you update the extension in the repository, remember to rebuild the bundle and update the gist with the new bundled output.
 
 ## Why This Is Better
 
