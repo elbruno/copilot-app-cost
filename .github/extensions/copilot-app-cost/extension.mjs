@@ -36,6 +36,7 @@ const state = {
 };
 
 const servers = new Map();
+let runtimeSession = null;
 
 function markProviderSuccess(providerKey) {
   const provider = state.providers[providerKey];
@@ -53,6 +54,11 @@ function markProviderFailure(providerKey, errorMessage, options = {}) {
 }
 
 async function refreshAuth() {
+  const sessionLogin = readSessionLogin(runtimeSession);
+  if (sessionLogin) {
+    state.auth.login = sessionLogin;
+  }
+
   try {
     const { stdout } = await execFileAsync("gh", ["api", "/user"], { timeout: GH_TIMEOUT_MS });
     const payload = JSON.parse(stdout);
@@ -60,21 +66,31 @@ async function refreshAuth() {
     state.auth.error = null;
     state.auth.checkedAt = new Date().toISOString();
   } catch (error) {
-    state.auth.error = error?.message ?? String(error);
+    if (state.auth.login) {
+      state.auth.error = null;
+    } else {
+      state.auth.error = error?.message ?? String(error);
+    }
     state.auth.checkedAt = new Date().toISOString();
   }
 }
 
-async function refreshLive(session) {
+async function refreshLive() {
+  if (!runtimeSession?.rpc?.usage?.getMetrics) {
+    state.live = null;
+    markProviderFailure("live", "Live usage metrics API is unavailable in this runtime.");
+    return;
+  }
+
   try {
-    const metrics = await session.rpc.usage.getMetrics?.();
+    const metrics = await runtimeSession.rpc.usage.getMetrics();
     if (!metrics) {
       state.live = null;
       markProviderFailure("live", "No active session metrics available.");
       return;
     }
 
-    const usage = metricsToSessionUsage(session.sessionId, metrics, {
+    const usage = metricsToSessionUsage(runtimeSession.sessionId, metrics, {
       source: "session.rpc.usage.getMetrics",
       metricsTimestamp: new Date().toISOString(),
     });
@@ -153,9 +169,9 @@ function enrichSessionUsage(item) {
   };
 }
 
-function refreshSessions(session) {
+function refreshSessions() {
   try {
-    const sessions = listRecentSessionUsages(session.sessionId, { limit: 30 }).map(enrichSessionUsage);
+    const sessions = listRecentSessionUsages(runtimeSession?.sessionId, { limit: 30 }).map(enrichSessionUsage);
     state.sessions = sessions;
     markProviderSuccess("sessions");
   } catch (error) {
@@ -326,10 +342,11 @@ function writeHtml(response, statusCode, html) {
 }
 
 async function refreshAll(session) {
+  runtimeSession = session ?? runtimeSession;
   await refreshAuth();
-  await refreshLive(session);
+  await refreshLive();
   await refreshBilling();
-  refreshSessions(session);
+  refreshSessions();
 }
 
 function createRequestHandler(session, instanceId) {
@@ -409,6 +426,7 @@ function startServer(session, instanceId) {
 }
 
 async function openCanvas(session, instanceId) {
+  runtimeSession = session ?? runtimeSession;
   const existing = servers.get(instanceId);
   if (existing && existing.server.listening) {
     const address = existing.server.address();
@@ -434,10 +452,31 @@ function closeAllServers() {
   for (const entry of servers.values()) {
     entry.server.close();
   }
+
+  function readSessionLogin(session) {
+    if (!session || typeof session !== "object") {
+      return null;
+    }
+
+    const candidates = [
+      session.userLogin,
+      session.login,
+      session.user?.login,
+      session.identity?.login,
+    ];
+
+    for (const value of candidates) {
+      if (typeof value === "string" && value.trim().length > 0) {
+        return value.trim();
+      }
+    }
+
+    return null;
+  }
   servers.clear();
 }
 
-await joinSession({
+runtimeSession = await joinSession({
   hooks: {
     onSessionEnd: () => {
       closeAllServers();
@@ -450,7 +489,7 @@ await joinSession({
       description: "Real-time Copilot AI-credit and cost dashboard",
       title: "Copilot App Cost",
       open: async ({ session, instanceId }) => {
-        return openCanvas(session, instanceId);
+        return openCanvas(session ?? runtimeSession, instanceId);
       },
     }),
   ],
