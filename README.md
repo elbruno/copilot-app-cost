@@ -2,15 +2,16 @@
 
 Monitor AI-credit usage from your active GitHub Copilot session and official GitHub billing.
 
-## Quick Start (1 minute) ⚡
+## Quick Start (recommended) ⚡
 
-Open **GitHub Copilot App** → Click **"Add to panel..."** → **"Import canvas from gist/URL"** → Paste:
+Use the **repo extension** path (most reliable in Copilot App):
 
-```
-https://gist.github.com/elbruno/43fa7650da08f976d6347492c8af9241
-```
+1. Open **GitHub Copilot App** in this repository session.
+2. Click **Add to panel...**.
+3. Click **Import canvas from repo**.
+4. Select extension: **copilot-app-cost** (`.github/extensions/copilot-app-cost`).
 
-**Done!** Canvas shows real-time AI-credit costs.
+The canvas appears in the right panel and shows real-time AI-credit costs.
 
 ## What It Shows
 
@@ -42,8 +43,8 @@ https://gist.github.com/elbruno/43fa7650da08f976d6347492c8af9241
 
 ```bash
 # 1. Open GitHub Copilot App (VS Code, GitHub.com, or CLI)
-# 2. Click: Add to panel → Import canvas from gist/URL
-# 3. Paste the gist URL above
+# 2. Click: Add to panel → Import canvas from repo
+# 3. Select: .github/extensions/copilot-app-cost
 # 4. (Optional) For billing: gh auth refresh -h github.com -s user
 ```
 
