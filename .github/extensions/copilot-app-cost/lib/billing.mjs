@@ -36,9 +36,11 @@ export function validateAccountName(value) {
 
 export function buildBillingRequest(settings, authStatus) {
     const scope = settings?.billingScope === "organization" ? "organization" : "user";
+    const organizationAccount = String(settings?.organizationAccount ?? "").trim();
+    const userAccount = String(settings?.userAccount ?? "").trim();
     const account = scope === "organization"
-        ? String(settings?.organizationAccount ?? "").trim()
-        : String(settings?.userAccount ?? authStatus?.login ?? "").trim();
+        ? organizationAccount
+        : userAccount || String(authStatus?.login ?? "").trim();
 
     return {
         scope,

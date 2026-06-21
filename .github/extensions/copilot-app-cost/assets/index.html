@@ -216,7 +216,13 @@
       }
 
       function renderStatusline(dashboard) {
-        const entries = [dashboard.providerStatus.live, dashboard.providerStatus.billing, dashboard.providerStatus.sessions].map((item) => {
+        const providerStatus = dashboard.providerStatus || {};
+        const safeItems = [
+          providerStatus.live || { name: 'Live session', available: false, stale: false, lastSuccessAt: null },
+          providerStatus.billing || { name: 'Billing', available: false, stale: false, lastSuccessAt: null },
+          providerStatus.sessions || { name: 'Local sessions', available: false, stale: false, lastSuccessAt: null },
+        ];
+        const entries = safeItems.map((item) => {
           const cls = item.available ? (item.stale ? 'warn' : 'ok') : 'bad';
           const age = item.lastSuccessAt ? 'Updated ' + timeAgo(item.lastSuccessAt) : 'No successful refresh yet';
           return '<span class="badge ' + cls + '">' + item.name + ' • ' + age + '</span>';
@@ -226,23 +232,24 @@
 
       function renderOverview(dashboard) {
         const cards = [];
-        const current = dashboard.overview.currentSession;
+        const overview = dashboard.overview || {};
+        const current = overview.currentSession;
         if (current) {
           cards.push('<div class="card"><div class="small muted">' + current.title + '</div><div class="metric">' + fmtMaybeNumber(current.aiCredits) + ' AI credits</div><div>~$' + fmtNumber(current.totalUsd) + ' USD</div><div class="small muted">' + current.source + ' • ' + current.calculationMethod + '</div></div>');
         } else {
           cards.push('<div class="card"><div class="small muted">Current Session</div><div>No active Copilot session metrics are available.</div></div>');
         }
-        const billing = dashboard.overview.officialMonthlyUsage;
+        const billing = overview.officialMonthlyUsage;
         if (billing) {
           cards.push('<div class="card"><div class="small muted">' + billing.title + '</div><div class="metric">' + fmtMaybeNumber(billing.netQuantity) + ' net AI credits</div><div>$' + fmtNumber(billing.netAmount) + ' net</div><div class="small muted">GITHUB BILLING • ' + billing.scope + '/' + billing.account + '</div></div>');
         } else {
           cards.push('<div class="card"><div class="small muted">Month-to-Date</div><div>Official billing data is unavailable for this scope.</div></div>');
         }
-        const remaining = dashboard.overview.remainingAllowance;
+        const remaining = overview.remainingAllowance;
         if (remaining) {
           cards.push('<div class="card"><div class="small muted">' + remaining.title + '</div><div class="metric">' + fmtMaybeNumber(remaining.creditsRemaining) + ' AI credits</div><div>' + fmtMaybeNumber(remaining.usagePercent, 1) + '% used</div><div class="small muted">' + remaining.reliability + '</div></div>');
         }
-        const additional = dashboard.overview.additionalUsage;
+        const additional = overview.additionalUsage;
         if (additional) {
           cards.push('<div class="card"><div class="small muted">' + additional.title + '</div><div class="metric">$' + fmtNumber(additional.netAmount) + '</div><div class="small muted">' + additional.source + '</div></div>');
         }
@@ -264,7 +271,7 @@
 
       function renderLive(dashboard) {
         const live = dashboard.live;
-        const trend = dashboard.charts.liveTrend.slice(-10);
+        const trend = (dashboard.charts?.liveTrend || []).slice(-10);
         const section = document.getElementById('live');
         if (!live || !live.usage) {
           section.innerHTML = '<div class="panel">No active live metrics are available right now.</div>';
@@ -331,7 +338,7 @@
       }
 
       function renderSessions(dashboard) {
-        const sessions = dashboard.sessions;
+        const sessions = dashboard.sessions || {};
         const section = document.getElementById('sessions');
         if (!sessions.items || sessions.items.length <= 0) {
           section.innerHTML = '<div class="panel">No compatible local Copilot sessions were found.</div>';
@@ -348,7 +355,18 @@
       }
 
       function renderSettings(dashboard) {
-        const settings = dashboard.settings;
+        const settings = dashboard.settings || {
+          billingScope: 'user',
+          userAccount: '',
+          organizationAccount: '',
+          billingYear: new Date().getUTCFullYear(),
+          billingMonth: new Date().getUTCMonth() + 1,
+          liveRefreshSeconds: 2,
+          sessionHistoryRefreshSeconds: 30,
+          billingRefreshMinutes: 5,
+          alerts: {},
+          billReasoningTokens: false,
+        };
         document.getElementById('settings').innerHTML = `
           <div class="panel">
             <h2>Settings</h2>
@@ -406,13 +424,14 @@
 
       function renderAlerts(dashboard) {
         const panel = document.getElementById('alerts');
-        if (!dashboard.alerts || dashboard.alerts.length <= 0) {
+        const alerts = Array.isArray(dashboard.alerts) ? dashboard.alerts : [];
+        if (alerts.length <= 0) {
           panel.hidden = true;
           panel.innerHTML = '';
           return;
         }
         panel.hidden = false;
-        panel.innerHTML = '<strong>Warnings and errors</strong><ul>' + dashboard.alerts.map((item) => '<li>' + item.message + '</li>').join('') + '</ul>';
+        panel.innerHTML = '<strong>Warnings and errors</strong><ul>' + alerts.map((item) => '<li>' + item.message + '</li>').join('') + '</ul>';
       }
 
       function render() {
@@ -431,7 +450,21 @@
 
       async function loadDashboard(force = false) {
         const response = await fetch('/api/dashboard' + (force ? '?force=true' : ''), { cache: 'no-store' });
-        state.dashboard = await response.json();
+        const payload = await response.json();
+        if (!response.ok || payload?.error) {
+          state.dashboard = {
+            providerStatus: {},
+            overview: {},
+            charts: { liveTrend: [] },
+            sessions: { items: [], mostExpensive: [] },
+            settings: state.dashboard?.settings || {},
+            diagnostics: { error: payload?.error || `HTTP ${response.status}` },
+            alerts: [{ message: payload?.error || `Dashboard API failed (HTTP ${response.status}).` }],
+          };
+          render();
+          return;
+        }
+        state.dashboard = payload;
         render();
       }
 

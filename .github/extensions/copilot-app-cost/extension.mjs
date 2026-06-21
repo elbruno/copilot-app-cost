@@ -464,28 +464,28 @@ function closeAllServers() {
   for (const entry of servers.values()) {
     entry.server.close();
   }
+  servers.clear();
+}
 
-  function readSessionLogin(session) {
-    if (!session || typeof session !== "object") {
-      return null;
-    }
-
-    const candidates = [
-      session.userLogin,
-      session.login,
-      session.user?.login,
-      session.identity?.login,
-    ];
-
-    for (const value of candidates) {
-      if (typeof value === "string" && value.trim().length > 0) {
-        return value.trim();
-      }
-    }
-
+function readSessionLogin(session) {
+  if (!session || typeof session !== "object") {
     return null;
   }
-  servers.clear();
+
+  const candidates = [
+    session.userLogin,
+    session.login,
+    session.user?.login,
+    session.identity?.login,
+  ];
+
+  for (const value of candidates) {
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return null;
 }
 
 runtimeSession = await joinSession({
