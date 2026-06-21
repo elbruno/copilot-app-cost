@@ -14,6 +14,8 @@ const EXTENSION_VERSION = "0.1.0";
 const GH_TIMEOUT_MS = 10000;
 const HOST = "127.0.0.1";
 const MAX_TIMELINE_POINTS = 120;
+const DEFAULT_INSTANCE_ID = "copilot-app-cost";
+const DEFAULT_PANEL_PORT = Number(process.env.COPILOT_APP_COST_PORT ?? 49830);
 const INDEX_HTML_PATH = path.join(import.meta.dirname, "assets", "index.html");
 const INDEX_TEMPLATE = fs.readFileSync(INDEX_HTML_PATH, "utf8");
 
@@ -415,31 +417,41 @@ function createRequestHandler(session, instanceId) {
   };
 }
 
-function startServer(session, instanceId) {
+function startServer(session, instanceId, port = 0) {
   return new Promise((resolve, reject) => {
     const server = http.createServer(createRequestHandler(session, instanceId));
     server.once("error", reject);
-    server.listen(0, HOST, () => {
+    server.listen(port, HOST, () => {
       resolve(server);
     });
   });
 }
 
-async function openCanvas(session, instanceId) {
-  runtimeSession = session ?? runtimeSession;
+async function ensureServer(session, instanceId, preferredPort = 0) {
   const existing = servers.get(instanceId);
   if (existing && existing.server.listening) {
-    const address = existing.server.address();
-    return {
-      title: "Copilot App Cost",
-      status: "ready",
-      url: `http://${HOST}:${address.port}/`,
-    };
+    return existing.server;
   }
 
-  const server = await startServer(session, instanceId);
+  let server;
+  try {
+    server = await startServer(session, instanceId, preferredPort);
+  } catch (error) {
+    if (preferredPort > 0 && error?.code === "EADDRINUSE") {
+      server = await startServer(session, instanceId, 0);
+    } else {
+      throw error;
+    }
+  }
+
   servers.set(instanceId, { server });
-  await refreshAll(session);
+  return server;
+}
+
+async function openCanvas(session, instanceId) {
+  runtimeSession = session ?? runtimeSession;
+  const server = await ensureServer(runtimeSession, DEFAULT_INSTANCE_ID, DEFAULT_PANEL_PORT);
+  await refreshAll(runtimeSession);
   const address = server.address();
   return {
     title: "Copilot App Cost",
@@ -494,3 +506,9 @@ runtimeSession = await joinSession({
     }),
   ],
 });
+
+try {
+  await ensureServer(runtimeSession, DEFAULT_INSTANCE_ID, DEFAULT_PANEL_PORT);
+} catch (error) {
+  await runtimeSession.log(`Copilot App Cost: failed to bind panel server: ${error?.message ?? String(error)}`, { level: "error" });
+}
