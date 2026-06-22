@@ -161,6 +161,15 @@
     </div>
     
     <div id="statusline" class="statusline" aria-live="polite" aria-atomic="true" role="status"></div>
+    <div id="server-down-banner" class="panel" hidden role="alert" aria-live="assertive" style="border-color:var(--danger);background:color-mix(in srgb,var(--danger) 8%,var(--contrast-bg))">
+      <strong>Extension server not responding.</strong>
+      The dashboard server (<code>127.0.0.1:49830</code>) is unreachable.
+      The extension process may have exited.
+      <br>
+      <strong>To fix:</strong> open the Copilot App extension list, find <em>copilot-app-cost</em>, and choose <strong>Reload</strong>.
+      Then close and re-open this panel.
+      See <a href="https://github.com/elbruno/copilot-app-cost/blob/main/docs/SERVER.md" target="_blank" rel="noopener">docs/SERVER.md</a> for details.
+    </div>
     <div id="alerts" class="panel" hidden role="alert" aria-live="assertive"></div>
     <div id="overview" class="cards" aria-label="Dashboard overview cards"></div>
 
@@ -234,8 +243,14 @@
         const cards = [];
         const overview = dashboard.overview || {};
         const current = overview.currentSession;
+        const live = dashboard.live;
+        const isWaiting = live && live.usage && (live.usage.totalUserRequests === 0 || live.usage.totalUserRequests == null);
         if (current) {
-          cards.push('<div class="card"><div class="small muted">' + current.title + '</div><div class="metric">' + fmtMaybeNumber(current.aiCredits) + ' AI credits</div><div>~$' + fmtNumber(current.totalUsd) + ' USD</div><div class="small muted">' + current.source + ' • ' + current.calculationMethod + '</div></div>');
+          if (isWaiting) {
+            cards.push('<div class="card"><div class="small muted">Current Session</div><div class="muted">Waiting for first Copilot request&hellip;</div><div class="small muted">The extension is running. AI-credit estimates appear once you start a Copilot chat or code completion.</div></div>');
+          } else {
+            cards.push('<div class="card"><div class="small muted">' + current.title + '</div><div class="metric">' + fmtMaybeNumber(current.aiCredits) + ' AI credits</div><div>~$' + fmtNumber(current.totalUsd) + ' USD</div><div class="small muted">' + current.source + ' • ' + current.calculationMethod + '</div></div>');
+          }
         } else {
           cards.push('<div class="card"><div class="small muted">Current Session</div><div>No active Copilot session metrics are available.</div></div>');
         }
@@ -278,6 +293,11 @@
           return;
         }
         const models = Array.isArray(live.usage.modelUsage) ? live.usage.modelUsage : [];
+        const isWaiting = live.usage.totalUserRequests === 0 || live.usage.totalUserRequests == null;
+        if (isWaiting) {
+          section.innerHTML = '<div class="panel"><h2>Live Session</h2><p>The extension is connected and the session RPC is available.</p><p class="muted small">Waiting for the first Copilot request in this session &mdash; AI-credit estimates will appear here once you start a chat or use code completion. The dashboard updates automatically every 2&nbsp;seconds.</p><p class="muted small">' + live.source + ' &bull; session: ' + live.usage.sessionId + ' &bull; started ' + timeAgo(live.usage.sessionStartTime) + '</p></div>';
+          return;
+        }
         section.innerHTML = `
           <div class="panel">
             <h2>Live Session</h2>
@@ -308,7 +328,16 @@
         const billing = dashboard.billing;
         const section = document.getElementById('billing');
         if (!billing || billing.availability === false) {
-          section.innerHTML = '<div class="panel"><h2>Billing</h2><p>Official billing data is unavailable for this scope.</p><p class="muted small">' + (billing?.error || 'Your Copilot license may be managed by an organization, or your account may not have the required billing permission.') + '</p></div>';
+          const reason = billing?.error || '';
+          let detail = 'Your Copilot license may be managed by an organization, or your account may not have the required billing permission.';
+          if (reason.includes('managed') || reason.includes('org') || reason.includes('403') || reason.includes('forbidden')) {
+            detail = 'Your Copilot license is managed by an organization &mdash; individual billing data is not accessible via the API. Your org admin can view usage in the GitHub organization settings.';
+          } else if (reason.includes('401') || reason.includes('auth') || reason.includes('unauthorized') || reason.includes('scope')) {
+            detail = 'Billing requires the <code>user</code> OAuth scope. Run <code>gh auth refresh -h github.com -s user</code> and then refresh the dashboard.';
+          } else if (reason.includes('account') || reason.includes('username')) {
+            detail = 'No GitHub username could be determined. Make sure <code>gh auth status</code> shows a logged-in account.';
+          }
+          section.innerHTML = '<div class="panel"><h2>Billing</h2><p>Official billing data is unavailable.</p><p class="muted small">' + detail + '</p>' + (reason ? '<p class="muted small">Error: ' + escapeHtml(reason) + '</p>' : '') + '</div>';
           return;
         }
         section.innerHTML = `
@@ -449,8 +478,16 @@
       }
 
       async function loadDashboard(force = false) {
-        const response = await fetch('/api/dashboard' + (force ? '?force=true' : ''), { cache: 'no-store' });
-        const payload = await response.json();
+        let response, payload;
+        try {
+          response = await fetch('/api/dashboard' + (force ? '?force=true' : ''), { cache: 'no-store' });
+          payload = await response.json();
+        } catch (_networkError) {
+          // Server not running — show actionable reload banner.
+          document.getElementById('server-down-banner').hidden = false;
+          return;
+        }
+        document.getElementById('server-down-banner').hidden = true;
         if (!response.ok || payload?.error) {
           state.dashboard = {
             providerStatus: {},
