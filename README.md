@@ -27,6 +27,7 @@ The canvas appears in the right panel and shows real-time AI-credit costs.
 - **User Guide:** [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) — How to read the dashboard
 - **API Reference:** [`docs/API.md`](docs/API.md) — Canvas capabilities
 - **FAQ:** [`docs/FAQ.md`](docs/FAQ.md) — Common questions
+- **Server internals:** [`docs/SERVER.md`](docs/SERVER.md) — How the local dashboard server works and how to restart it
 - **Security & Privacy:** [`docs/SECURITY.md`](docs/SECURITY.md) — Data handling
 
 ## Key Features

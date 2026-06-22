@@ -89,3 +89,10 @@ Delete the file if corrupted (defaults will be restored).
 - **Security:** [docs/SECURITY.md](SECURITY.md)
 
 **All set!** 🎉
+
+---
+
+## More help
+
+- Panel still not showing data? See [`docs/SERVER.md`](SERVER.md) for server lifecycle details and step-by-step restart instructions.
+- General questions? See [`docs/FAQ.md`](FAQ.md).
