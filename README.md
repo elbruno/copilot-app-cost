@@ -2,6 +2,10 @@
 
 Monitor AI-credit usage from your active GitHub Copilot session and official GitHub billing.
 
+![Copilot App Cost Dashboard running in GitHub Copilot App](docs/images/demo-dashboard.jpg)
+
+> The dashboard canvas running inside the GitHub Copilot App — live session estimate on the right, alongside an active Copilot agent conversation on the left.
+
 ## Quick Start (recommended) ⚡
 
 Use the **repo extension** path (most reliable in Copilot App):
